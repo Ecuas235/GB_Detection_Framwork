@@ -5,7 +5,7 @@ from langchain_community.graphs import Neo4jGraph
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 
-from .prompts import anomaly_scoring_prompt
+from .prompts_v2 import anomaly_scoring_prompt
 import numpy as np
 
 # Initialize LLM and Neo4j Graph
