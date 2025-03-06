@@ -137,32 +137,34 @@ def extract_player_data(state: State) -> Dict:
     return {"player_data": player_data}
 
 # --- Define Graph ---
+def main():
+    graph = StateGraph(State)
 
-graph = StateGraph(State)
+    # Define the nodes
+    graph.add_node("ingest_data", ingest_data)
+    graph.add_node("extract_player_data", extract_player_data)
+    graph.add_node("semantic_search", semantic_search)
+    graph.add_node("anomaly_scoring", anomaly_scoring)
+    graph.add_node("generate_report", generate_report)
 
-# Define the nodes
-graph.add_node("ingest_data", ingest_data)
-graph.add_node("extract_player_data", extract_player_data)
-graph.add_node("semantic_search", semantic_search)
-graph.add_node("anomaly_scoring", anomaly_scoring)
-graph.add_node("generate_report", generate_report)
+    # Define the edges
+    graph.set_entry_point("ingest_data")
+    graph.add_edge("ingest_data", "extract_player_data")
+    graph.add_edge("extract_player_data", "semantic_search")
+    graph.add_edge("semantic_search", "anomaly_scoring")
+    graph.add_edge("anomaly_scoring", "generate_report")
+    graph.add_edge("generate_report", END)
 
-# Define the edges
-graph.set_entry_point("ingest_data")
-graph.add_edge("ingest_data", "extract_player_data")
-graph.add_edge("extract_player_data", "semantic_search")
-graph.add_edge("semantic_search", "anomaly_scoring")
-graph.add_edge("anomaly_scoring", "generate_report")
-graph.add_edge("generate_report", END)
-
-app = graph.compile()
+    app = graph.compile()
+    return app
 
 
 # Run the graph
 #player_id  = 202735
-player_id = 233533
-inputs = {"player_id": player_id}
-results = app.invoke(inputs)
+# player_id = 233533
+# inputs = {"player_id": player_id}
+# app =main()
+# results = app.invoke(inputs)
 
-print(f"Analysis complete for player_id: {player_id}")
-print(f"Final Results: {results}")
+# print(f"Analysis complete for player_id: {player_id}")
+# print(f"Final Results: {results}")
