@@ -161,10 +161,10 @@ def main():
 
 # Run the graph
 #player_id  = 202735
-# player_id = 233533
-# inputs = {"player_id": player_id}
-# app =main()
-# results = app.invoke(inputs)
+player_id = 233533
+inputs = {"player_id": player_id}
+app =main()
+results = app.invoke(inputs)
 
-# print(f"Analysis complete for player_id: {player_id}")
-# print(f"Final Results: {results}")
+print(f"Analysis complete for player_id: {player_id}")
+print(f"Final Results: {results}")
