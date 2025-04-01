@@ -1,7 +1,7 @@
 # ml/anomaly_scoring_agent.py
 import os
 from typing import List
-from langchain_community.graphs import Neo4jGraph
+from langchain_neo4j import Neo4jGraph
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 
@@ -9,16 +9,8 @@ from .prompts_v2 import anomaly_scoring_prompt
 import numpy as np
 
 # Initialize LLM and Neo4j Graph
-llm = ChatGroq(model="llama-3.3-70b-versatile")
-NEO4J_URI = os.getenv("NEO4J_URI")
-NEO4J_USERNAME = os.getenv("NEO4J_USERNAME")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
-graph = Neo4jGraph(
-    url=NEO4J_URI, username=NEO4J_USERNAME, password=NEO4J_PASSWORD
-)
-
-def extract_player_features(player_id: str) -> dict:
+def extract_player_features(player_id: str, graph) -> dict:
     """Extracts features from the knowledge graph for a given player."""
     query = f"""
     MATCH (p:Player {{Actor: toInteger('{player_id}')}})
@@ -47,7 +39,7 @@ if prompt_template:
 else:
     prompt = None  # Handle the case where the prompt couldn't be loaded
 
-def assess_bot_likelihood(player_data: dict, similar_player_ids: List[str] = []) -> tuple[int, str, str]:
+def assess_bot_likelihood(player_data: dict, llm, graph ,similar_player_ids: List[str] = []) -> tuple[int, str, str]:
     """Assesses the likelihood of a player being a bot using LLM, considering player statistics and insights from similar players."""
     if prompt is None:
         return None, "Prompt could not be loaded", None
@@ -55,7 +47,7 @@ def assess_bot_likelihood(player_data: dict, similar_player_ids: List[str] = [])
     # Get insights from similar players
     similar_player_insights = ""
     if similar_player_ids:
-        similar_player_data = [extract_player_features(pid) for pid in similar_player_ids]
+        similar_player_data = [extract_player_features(pid, graph) for pid in similar_player_ids]
         # Combine insights (e.g., summarize their behaviors or anomaly scores)
         similar_player_insights = f"Similar players: {', '.join(similar_player_ids)}. " \
                                   f"Insights: {similar_player_data}"  # Simple concatenation for now

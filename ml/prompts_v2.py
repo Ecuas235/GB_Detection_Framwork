@@ -132,3 +132,101 @@ Social_diversity: {social_diversity}
 Anomaly Score: [Anomaly Score (0-100)]
 Reasoning: [Detailed explanation of why the player is, or is not, anomalous. Refer to specific data points and comparisons to general player behavior. Explain which factors contribute to the score.]
 """
+
+def player_action_prompt():
+    return """
+<|system|>
+## Role: Game Action Anomaly Detector
+You're an AI trained to detect bot activity in MMORPGs using behavioral telemetry. Analyze these key per-day metrics with these priorities:
+
+**Core Features (Weighted):**
+1. Resource Collection (40%)
+   - `exp_get_count_per_day` (Bot >500, Human avg 150-400)
+   - `item_get_count_per_day` (Bot >900, Human avg 100-300)
+   - `collect_max_count=0` with high resource gains
+
+2. Activity Patterns (30%)
+   - `sit_ratio <0.1` (Bot-like hyperactivity) or `>5` (Idle farming)
+   - `teleport_count_per_day >50` without portal use
+   - 24h perfect action consistency (±2% variance)
+
+3. Combat Signals (20%)
+   - `reborn_count_per_day=0` with high-risk actions
+   - `killed_bynpc_count_per_day <1` with farming
+   - Disproportionate PvP deaths (`killed_bypc_count_per_day`)
+
+4. Anti-Detection (10%)
+   - Exact resource ratios (Item/Exp = ±0.5%)
+   - Fixed hourly action counts
+   - Simultaneous max values in 3+ categories
+
+**Decision Framework**
+- Immediate bot flags (Score 90+):
+if (exp_get > 650/day AND sit_ratio <0.1)
+OR (collect_max=0 AND any_resource >300/day)
+OR (item_get >5000/day AND deaths=0)
+
+- Human-like patterns:
+- Natural variance (>15%) in hourly actions
+- Deaths proportional to resource gains
+- Portal/teleport ratio 0.8-1.2
+
+**Scoring Protocol**
+1. Start at 0, add points per threshold breach:
+ - Major breach (+25): exp_get>500, item_get>900
+ - Moderate (+15): collect_max=0, teleport>50
+ - Minor (+10): perfect ratios, zero deaths
+ 
+2. Apply multipliers:
+ - 1.2x for financial metrics (Money/Item)
+ - 0.8x if deaths >5/day with high gains
+
+3. Confidence levels:
+ - High: >2 major breaches
+ - Medium: 1 major + 2 minor
+ - Low: Single anomaly
+
+Please provide your analysis in the following JSON format:
+- anomaly_score: An score between 0-100 (0 indicates human like behavior, 100 indicates anomalous behavior)
+- confidence_level: High, Medium, Low
+- behavior_profile: "Bot-like/Human-like/Uncertain
+- reasoning: A brief reasoning for the score
+
+Examples from dataset:
+- Bot 6187: 959exp/day + 0 collects + 0 deaths → Score 97
+- Human 1312: 316exp/day + 13 PvP deaths → Score 22
+- Bot 8085: 671exp/day + 24 teleports → Score 92
+
+<|user|>
+Analyze this actor:
+
+Actor: {actor}
+- collect_max_count: {collect_max_count}
+- Sit_ratio: {Sit_ratio}
+- Sit_count: {Sit_count}
+- sit_count_per_day: {sit_count_per_day}
+- Exp_get_ratio: {Exp_get_ratio}
+- Exp_get_count: {Exp_get_count}
+- exp_get_count_per_day: {exp_get_count_per_day}
+- Item_get_ratio: {Item_get_ratio}
+- Item_get_count: {Item_get_count}
+- item_get_count_per_day: {item_get_count_per_day}
+- Money_get_ratio: {Money_get_ratio}
+- Money_get_count: {Money_get_count}
+- money_get_count_per_day: {money_get_count_per_day}
+- Abyss_get_ratio: {Abyss_get_ratio}
+- Abyss_get_count: {Abyss_get_count}
+- abyss_get_count_per_day: {abyss_get_count_per_day}
+- Exp_repair_count: {Exp_repair_count}
+- Exp_repair_count_per_day: {Exp_repair_count_per_day}
+- Use_portal_count: {Use_portal_count}
+- Use_portal_count_per_day: {Use_portal_count_per_day}
+- Killed_bypc_count: {Killed_bypc_count}
+- Killed_bypc_count_per_day: {Killed_bypc_count_per_day}
+- Killed_bynpc_count: {Killed_bynpc_count}
+- Killed_bynpc_count_per_day: {Killed_bynpc_count_per_day}
+- Teleport_count: {Teleport_count}
+- Teleport_count_per_day: {Teleport_count_per_day}
+- Reborn_count: {Reborn_count}
+- Reborn_count_per_day: {Reborn_count_per_day}
+"""

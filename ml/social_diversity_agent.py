@@ -9,16 +9,8 @@ from .prompts_v2 import social_diversity_prompt
 import numpy as np
 
 # Initialize LLM and Neo4j Graph
-llm = ChatGroq(model="llama-3.3-70b-versatile")
-NEO4J_URI = os.getenv("NEO4J_URI")
-NEO4J_USERNAME = os.getenv("NEO4J_USERNAME")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
-graph = Neo4jGraph(
-    url=NEO4J_URI, username=NEO4J_USERNAME, password=NEO4J_PASSWORD
-)
-
-def extract_player_social_diversity_features(player_id: str) -> dict:
+def extract_player_social_diversity_features(player_id: str, graph: Neo4jGraph) -> dict:
     """
     Extracts features from the knowledge graph for a given player.
     """
@@ -41,18 +33,12 @@ if prompt_template:
     prompt = ChatPromptTemplate.from_template(prompt_template)
 else:
     prompt = None  
-def assess_social_bot_likelihood(player_data: dict, similar_player_ids: List[str] = []) -> tuple[int, str, str]:
+def assess_social_bot_likelihood(player_data: dict, llm: ChatGroq) -> tuple[int, str, str]:
     """Assesses the likelihood of a player being a bot using LLM, considering player statistics and insights from similar players."""
     if prompt is None:
         return None, "Prompt could not be loaded", None
 
-    # Get insights from similar players
-    similar_player_insights = ""
-    if similar_player_ids:
-        similar_player_data = [extract_player_social_diversity_features(pid) for pid in similar_player_ids]
-        # Combine insights (e.g., summarize their behaviors or anomaly scores)
-        similar_player_insights = f"Similar players: {', '.join(similar_player_ids)}. " \
-                                  f"Insights: {similar_player_data}"  # Simple concatenation for now
+    # Get insights from similar playersimple concatenation for now
 
     # Format the prompt
     formatted_prompt = prompt.format_messages(
