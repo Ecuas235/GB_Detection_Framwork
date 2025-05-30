@@ -1,6 +1,6 @@
 data/
 .csv
-
+llm_evaluation_output/
 .env
 
 model/

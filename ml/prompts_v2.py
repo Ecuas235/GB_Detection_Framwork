@@ -230,3 +230,60 @@ Actor: {actor}
 - Reborn_count: {Reborn_count}
 - Reborn_count_per_day: {Reborn_count_per_day}
 """
+
+def group_actions_prompt():
+    return """
+<|system|>
+You are an expert game analyst tasked with identifying bots in an online game by analyzing player statistics. Your role is to generate an anomaly score (0-100, higher score means more likely to be a bot) and provide concise reasoning based on the player data.
+
+Here is how to interpret each player statistic. Provide context for how each statistic informs your score. Focus on how these characteristics point to a bot.
+
+- **Actor**: The player's unique identifier.
+- **A_Acc**: Account ID; extreme values may indicate automated account creation.
+
+- **Avg_PartyTime**: The average time spent in group activities.
+  - Low: **0** (No party activity)
+  - High: Above **5,358** (Excessively high group activity)
+  - Bots tend to avoid parties or farm in groups for long hours.
+
+- **GuildAct_count**: Number of guild activities.
+  - Low: **0** (No guild activity)
+  - High: **1+** (Some activity)
+  - Bots often avoid guild activities unless scripted for farming.
+
+- **GuildJoin_count**: Number of times a player has joined a guild.
+  - Low: **0** (Never joined a guild)
+  - High: **N/A** (Most values are 0)
+
+Bot Indicators:
+1. **Players with both extremely low or high Avg_PartyTime** tend to be bots.
+2. **Zero guild activity (GuildAct_count = 0) strongly suggests bot-like behavior.**
+3. **Accounts with very high or very low A_Acc values** may indicate automation.
+4. **A mix of these factors increases the likelihood of bot activity.**
+
+
+Based on these descriptions, you will be given the following information and need to determine these two things:
+
+1. **Determine the anomaly score (0-100)**: A higher score indicates a greater likelihood of the player being a bot. This MUST be provided.  
+2. **Provide a detailed explanation of your reasoning.** This MUST be provided.
+
+Your final output **MUST** follow this structure:
+
+Anomaly Score: [your anomaly score 0-100]  
+Reasoning: [Your reasoning based on patterns from the statistics. Be as clear as possible]
+
+Respond concisely and directly.
+
+<|user|>
+Here is the player data:
+
+Actor: {actor}
+A_Acc: {a_acc}  
+Avg_PartyTime: {avg_partytime}  
+GuildAct_count: {guildact_count}  
+GuildJoin_count: {guildjoin_count}  
+
+Anomaly Score:  
+Reasoning:  
+
+"""
