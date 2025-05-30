@@ -1,6 +1,7 @@
 import os
 import random
 from typing import Any, Dict, List, TypedDict
+import requests
 
 from dotenv import load_dotenv
 from langchain_core.language_models.base import BaseLanguageModel
@@ -16,6 +17,7 @@ from ml.search_agent import FAISSIndex
 from ml.anomaly_scoring_agent import assess_bot_likelihood, extract_player_features
 from ml.social_diversity_agent import assess_social_bot_likelihood, extract_player_social_diversity_features
 from ml.player_actions_agent import extract_player_action_features, assess_player_action
+from ml.group_actions import extract_player_group_action_features, assess_group_action_bot_likelihood
 from src.data_ingestion.load_data import load_player_data
 
 # Load Environment Variables
@@ -33,6 +35,7 @@ class PlayerAnalysisState(TypedDict):
     player_data: Dict[str, Any]
     social_data: Dict[str, Any]
     player_action_data: Dict[str, Any]
+    group_action_data: Dict[str, Any]
     similar_player_ids: List[str]
     
     # Analysis Results
@@ -42,6 +45,8 @@ class PlayerAnalysisState(TypedDict):
     social_reasoning: str
     player_action_score: float
     player_action_reasoning: str
+    group_action_reasoning: str
+    group_action_score: float
     
     # Final Classification
     classification_result: str
@@ -96,6 +101,17 @@ class BotDetectionOrchestrator:
         Reasoning: [Concise analysis combining both reports]
         """)
 
+    def check_graph_empty(self) -> bool:
+        query = 'MATCH (n) RETURN count(n) AS node_count'
+        response = self.neo4j_graph.query(query)
+        return response[0]["node_count"] == 0
+    
+    def check_graph_status(self, state: PlayerAnalysisState) -> Dict[str, Any]:
+        """Returns PROPER STATE UPDATE with graph status"""
+        is_empty = self.check_graph_empty()  # Your Neo4j check method
+        return {"is_graph_empty": is_empty}  # Must return dict
+
+    
     def data_ingestion(self, state: PlayerAnalysisState) -> Dict[str, List[str]]:
         """Ingest data into knowledge graph with robust error handling."""
         try:
@@ -112,7 +128,8 @@ class BotDetectionOrchestrator:
         return {
             "player_data": extract_player_features(player_id, self.neo4j_graph),
             "social_data": extract_player_social_diversity_features(player_id, self.neo4j_graph),
-            "player_action_data": extract_player_action_features(player_id, self.neo4j_graph)
+            "player_action_data": extract_player_action_features(player_id, self.neo4j_graph),
+            "group_action_data": extract_player_group_action_features(player_id, self.neo4j_graph)
         }
 
     def semantic_search(self, state: PlayerAnalysisState) -> Dict[str, List[str]]:
@@ -147,13 +164,21 @@ class BotDetectionOrchestrator:
             state['player_action_data'],
             self.llm
         )
+        
+        group_action_score, group_action_reasoning, _ = assess_group_action_bot_likelihood(
+            state['group_action_data'],
+            self.llm
+        )
+        
         return {
             "anomaly_score": anomaly_score,
             "anomaly_reasoning": anomaly_reasoning,
             "social_diversity_score": social_diversity_score,
             "social_reasoning": social_reasoning,
             "player_action_score": player_action_score,
-            "player_action_reasoning": player_action_reasoning
+            "player_action_reasoning": player_action_reasoning,
+            "group_action_score": group_action_score,
+            "group_action_reasoning": group_action_reasoning
         }
 
     def classify_player(self, state: PlayerAnalysisState) -> Dict[str, Any]:
@@ -262,6 +287,7 @@ class BotDetectionOrchestrator:
         graph = StateGraph(PlayerAnalysisState)
         
         # Add workflow nodes
+        graph.add_node("check_graph_status", self.check_graph_status)  # New check node
         graph.add_node("ingest_data", self.data_ingestion)
         graph.add_node("extract_features", self.extract_player_features)
         graph.add_node("semantic_search", self.semantic_search)
@@ -272,7 +298,12 @@ class BotDetectionOrchestrator:
         graph.add_node("advance_player", self.advance_to_next_player)
         
         # Define workflow edges
-        graph.set_entry_point("ingest_data")
+        graph.set_entry_point("check_graph_status")
+    
+        graph.add_conditional_edges(
+            "check_graph_status",
+            lambda state: "ingest_data" if state["is_graph_empty"] else "extract_features"
+        )
         graph.add_edge("ingest_data", "extract_features")
         graph.add_edge("extract_features", "semantic_search")
         graph.add_edge("semantic_search", "analyze_player")
@@ -295,7 +326,7 @@ class BotDetectionOrchestrator:
 
 def main():
     # Configure dependencies
-    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY2")
+    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY6")
     os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGSMITH_API_KEY")
     os.environ["LANGCHAIN_PROJECT"] = "Game Bot Detection Framework"
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
@@ -313,7 +344,7 @@ def main():
     player_df = load_player_data()
     player_ids = player_df['Actor'].unique().tolist()
     
-    sample_size = min(30, len(player_ids))
+    sample_size = min(3, len(player_ids))
     sampled_player_ids = random.sample(player_ids, sample_size)
 
     # Initialize orchestrator
